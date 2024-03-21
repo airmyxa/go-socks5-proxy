@@ -1,5 +1,7 @@
 package proto
 
+// https://www.rfc-editor.org/rfc/rfc1928
+
 import (
 	"fmt"
 	"slices"
@@ -27,6 +29,20 @@ const (
 )
 
 var Atyps = [...]Atyp{Ipv4, Domain, Ipv6}
+
+type Rep byte
+
+const (
+	Succeeded               Rep = 0x0
+	GeneralServerFailure    Rep = 0x1
+	ConnectionNotAllowed    Rep = 0x2
+	NetworkUnreachable      Rep = 0x3
+	HostUnreachable         Rep = 0x4
+	ConnectionRefused       Rep = 0x5
+	TtlExpired              Rep = 0x6
+	CommandNotSupported     Rep = 0x7
+	AddressTypeNotSupported Rep = 0x8
+)
 
 type ParseError struct {
 	message string
@@ -122,16 +138,37 @@ func (sr *ClientSocksRequest) FromBytes(bytes []byte) error {
 		return ParseError{message: fmt.Sprintf("Unsupported address type: %b", sr.AddrType)}
 	}
 
+	var last uint8
 	if sr.AddrType == Ipv4 {
 		copy(sr.DestAddr, bytes[4:8])
+		last = 8
 	} else if sr.AddrType == Ipv6 {
 		copy(sr.DestAddr, bytes[4:20])
+		last = 20
 	} else if sr.AddrType == Domain {
 		length := bytes[4]
 		copy(sr.DestAddr, bytes[4:length])
+		last = length
 	} else {
 		return ParseError{message: fmt.Sprintf("Cannot parse destination address of type: %b", sr.AddrType)}
 	}
 
+	sr.DestPort = uint16(bytes[last])
+	sr.DestPort <<= 8
+	sr.DestPort |= uint16(bytes[last+1])
+
+	return nil
+}
+
+type ServerSocksResponse struct {
+	Ver       byte
+	ReplyCode Rep
+	Reserved  byte
+	AddrType  Atyp
+	BindAddr  []byte
+	BindPort  uint16
+}
+
+func (sr *ServerSocksResponse) ToBytes() []byte {
 	return nil
 }
