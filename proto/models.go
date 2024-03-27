@@ -170,5 +170,18 @@ type ServerSocksResponse struct {
 }
 
 func (sr *ServerSocksResponse) ToBytes() []byte {
-	return nil
+	bytes := make([]byte, 10)
+
+	bytes[0] = sr.Ver
+	bytes[1] = byte(sr.ReplyCode)
+	bytes[2] = sr.Reserved
+	bytes[3] = byte(sr.AddrType)
+
+	copy(bytes[4:], sr.BindAddr)
+	last := 4 + len(sr.BindAddr)
+
+	bytes[last] = byte(sr.BindPort >> 8)
+	bytes[last+1] = byte(sr.BindPort & 255)
+
+	return bytes
 }
