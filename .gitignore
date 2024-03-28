@@ -1,2 +1,5 @@
 target/
-
+tests/bin/
+tests/include/
+tests/lib/
+tests/pyvenv.cfg
