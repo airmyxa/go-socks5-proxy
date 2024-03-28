@@ -140,14 +140,17 @@ func (sr *ClientSocksRequest) FromBytes(bytes []byte) error {
 
 	var last uint8
 	if sr.AddrType == Ipv4 {
+		sr.DestAddr = make([]byte, 4)
 		copy(sr.DestAddr, bytes[4:8])
 		last = 8
 	} else if sr.AddrType == Ipv6 {
+		sr.DestAddr = make([]byte, 20)
 		copy(sr.DestAddr, bytes[4:20])
 		last = 20
 	} else if sr.AddrType == Domain {
 		length := bytes[4]
-		copy(sr.DestAddr, bytes[4:length])
+		sr.DestAddr = make([]byte, length)
+		copy(sr.DestAddr, bytes[5:5+length])
 		last = length
 	} else {
 		return ParseError{message: fmt.Sprintf("Cannot parse destination address of type: %b", sr.AddrType)}

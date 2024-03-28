@@ -65,19 +65,18 @@ func (s *Session) handshake() error {
 
 	ssm := ServerSelectedMethod{Ver: Ver5, Method: 0}
 	size := copy(bytes, ssm.ToBytes())
-	bytes = bytes[:size]
-	_, err = s.lstream.Write(bytes)
+	_, err = s.lstream.Write(bytes[:size])
 	if err != nil {
 		return SessionError{message: fmt.Sprintf("Client error: %s", err.Error())}
 	}
 
-	_, err = s.lstream.Read(bytes)
+	size, err = s.lstream.Read(bytes)
 	if err != nil {
 		return err
 	}
 
 	var csr ClientSocksRequest
-	err = csr.FromBytes(bytes)
+	err = csr.FromBytes(bytes[:size])
 	if err != nil {
 		return err
 	}
@@ -99,16 +98,15 @@ func (s *Session) handshake() error {
 		return err
 	}
 
-	s.rstream, err = net.DialTCP("ip", nil, &net.TCPAddr{Zone: "", IP: addr, Port: int(csr.DestPort)})
+	s.rstream, err = net.DialTCP("tcp", nil, &net.TCPAddr{Zone: "", IP: addr, Port: int(csr.DestPort)})
 	if err != nil {
 		return err
 	}
 
 	ssr := ServerSocksResponse{Ver: Ver5, ReplyCode: Succeeded, Reserved: Rsv, AddrType: Ipv4, BindAddr: make([]byte, 4), BindPort: 0}
 	size = copy(bytes, ssr.ToBytes())
-	bytes = bytes[:size]
 
-	_, err = s.lstream.Write(bytes)
+	_, err = s.lstream.Write(bytes[:size])
 	if err != nil {
 		return err
 	}
@@ -121,10 +119,12 @@ func (s *Session) authenticate() error {
 }
 
 func (s *Session) pipe() error {
+	fmt.Println("Starting pipe")
 	lch := make(chan error)
 	rch := make(chan error)
 
 	defer func() {
+		fmt.Println("Closing pipe")
 		close(lch)
 		close(rch)
 	}()
@@ -137,10 +137,12 @@ func (s *Session) pipe() error {
 			_, err := readStream.Read(buf)
 			if err != nil {
 				waitCannel <- err
+				return
 			}
 			_, err = writeStream.Write(buf)
 			if err != nil {
 				waitCannel <- err
+				return
 			}
 		}
 	}
@@ -162,5 +164,7 @@ func (s *Session) pipe() error {
 }
 
 func (s *Session) shutdown() error {
+	s.lstream.Close()
+	s.rstream.Close()
 	return nil
 }
